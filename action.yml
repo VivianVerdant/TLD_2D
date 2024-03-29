@@ -10,11 +10,11 @@ inputs:
   working-directory:
     description: 'The working directory'
     required: false
-    default: '.'
+    default: './Project'
   output-file-path:
     description: 'Path of the exported html files'
     required: false
-    default: 'html5/index.html'
+    default: 'build/html5/index.html'
   create-export-preset-cfg:
     description: 'Set true if a simple export_presets.cfg should be created'
     required: false
