@@ -3,7 +3,7 @@ class_name Player
 extends CharacterBody2D
 
 @export var MAX_SPEED: float = 150.0
-@export var ACCELERATION: float = 15.0
+@export var ACCELERATION: float = 10.0
 @export var AIR_FRICTION: float = 0.5
 @export var SKID_FRICTION: float = 0.5
 @export var SLIDE_FRICTION: float = 0.5
@@ -59,10 +59,11 @@ func _ready():
 
 func set_platformer_state():
 	
+	# Initialize the state to neutral each frame, then proceed until we find another state that is more applicable or not
 	platformer_state = PLATFORMER_STATES.NEUTRAL
 	
+	# Track jump input across frames to only jump if we weren't pressing jump last frame
 	var is_jump_just_pressed = (true if GlobalInput.jump and not jump_pressed_prev_frame else false)
-	jump_pressed_prev_frame = GlobalInput.jump
 	
 	# Start jumping
 	if is_jump_just_pressed and is_on_floor():
@@ -71,8 +72,11 @@ func set_platformer_state():
 		jump_timer.start()
 		return
 	
-	# Ground movement
+	# Check if we are on the floor
 	if is_on_floor():
+		# Ground movement
+		
+		# If we are pressing down on the D pad we start sliding
 		if GlobalInput.joyLY > 0:
 			platformer_state = PLATFORMER_STATES.SLIDING	# Set state
 			return
@@ -84,10 +88,10 @@ func set_platformer_state():
 		if sign(GlobalInput.joyLX) == sign(velocity.x):
 			platformer_state = PLATFORMER_STATES.RUNNING	# Set state
 			return
-
+		
 		platformer_state = PLATFORMER_STATES.SKIDDING	# Set state
 		return
-
+		
 	else:
 		# Air movement
 		if jumping and GlobalInput.jump:
@@ -148,11 +152,15 @@ func do_physics():
 	
 	match platformer_state:
 		PLATFORMER_STATES.JUMPING:
+			if not jump_pressed_prev_frame:
+				velocity.y -= JUMP_FORCE
+			
 			on_ground = false
 			velocity.x += GlobalInput.joyLX * AIR_FRICTION * ACCELERATION
 			
 		PLATFORMER_STATES.FALLING:
 			on_ground = false
+			jump_timer.stop()
 			velocity.y += GRAVITY
 			velocity.x += GlobalInput.joyLX * AIR_FRICTION * ACCELERATION
 			
@@ -174,27 +182,18 @@ func do_physics():
 	
 	# bonk head on ceilings
 	if is_on_ceiling():
+		jumping = false
 		print("bonk")
 		velocity.y = max(velocity.y,0)
 		jump_timer.stop()
 	
-	# I don't remember what this code does XD
-	#if not jump_timer.is_stopped() and GlobalInput.jump:
-		#snap = Vector2.ZERO
-	#else:
-		#if not no_grav:
-			#velocity.y += GRAVITY
-		#snap = Vector2(0,4)
+
 	
-	# fully stop to zero if small enough
-	#if abs(velocity.x) < .01 and GlobalInput.joyLX == 0:
-		#velocity.x = 0
-	
-	# apply velocity using class function
-	
-	#on_ground = is_on_floor()
+	if abs(velocity.x) > MAX_SPEED:
+		velocity.x = GlobalInput.joyLX * MAX_SPEED
 	
 	move_and_slide()
+	
 	# kill x velocity if we ran into a wall
 	#for i in get_slide_collision_count():
 		#var collision: KinematicCollision2D = get_slide_collision(i)
@@ -207,24 +206,32 @@ func do_actions():
 		#state = PLATFORMER_STATES.MELEE
 		pass
 
+# Code that runs every physics step (usually twice as fast as rendered frames)
 func _physics_process(delta):
+	
+	# Since I am running the script in editor to do some grid-snapping, skip the whole update if we're in editor
 	if Engine.is_editor_hint() or EventManager.paused:
 		return
 	
+	# Player character can be marked as "busy" (for cutscenes mainly)
+	# If we are busy skip the following functions
 	if not busy:
-		set_platformer_state()
-		do_physics()
-		#set_action_state()
-		do_actions()
-		set_animation(delta)
+		set_platformer_state() 	# Using player inputs and character's condition in the world, set the platforming state
+		do_physics() 			# Using the state set above, apply various physics processes to the physical character
+		#set_action_state()		# Using player inputs, set what action the player is trying to do (interacting with objects, attacking, etc)
+		do_actions()			# Using the state set above, aplly those actions to the other actors in the world
+		set_animation(delta)	# Set what animation the animation player node should run
 	
-	if on_ground:
-		pass
+	# not ideal, I still need to fix how to handle holding down jump inputs
+	jump_pressed_prev_frame = GlobalInput.jump
 	
+	# Send data to the GUI debugging labels (upper left corner of screen)
 	debug_labels.update_data({
 		"State": PLATFORMER_STATES.keys()[platformer_state],
 		"On Ground": on_ground,
-		"Velocity": velocity
+		"Velocity": velocity,
+		"Jump Timer": jump_timer.time_left,
+		"jump pressed prev frame": jump_pressed_prev_frame
 	})
 
 func _on_hitbox_body_entered(object):
@@ -287,3 +294,8 @@ func move_snap():
 func _on_effects_player_animation_finished(anim_name):
 	if anim_name == "hit_flash":
 		effects_player.play("none")
+
+func _on_jump_timer_timeout():
+	jumping = false
+	if platformer_state == PLATFORMER_STATES.JUMPING:
+		platformer_state = PLATFORMER_STATES.FALLING
