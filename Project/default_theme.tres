@@ -1,7 +1,0 @@
-[gd_resource type="Theme" load_steps=2 format=3 uid="uid://chlv0cqyoc1kh"]
-
-[ext_resource type="FontFile" uid="uid://bfk0ddiby66kp" path="res://joystix monospace.ttf" id="1_3mkea"]
-
-[resource]
-Label/font_sizes/font_size = 10
-Label/fonts/font = ExtResource("1_3mkea")

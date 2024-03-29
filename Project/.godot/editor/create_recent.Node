@@ -1,0 +1,12 @@
+Marker2D
+Label
+VBoxContainer
+Control
+Camera2D
+CenterContainer
+TileMap
+AnimatedSprite2D
+AnimationPlayer
+AnimationTree
+CollisionShape2D
+CharacterBody2D

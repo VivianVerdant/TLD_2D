@@ -1,0 +1,10 @@
+res://player/player.tscn
+res://default_theme.tres
+res://env/grass_tile_set.tres
+res://models/tree-orb.leaves.shader.res
+res://main.tscn
+res://entities/enemies/goon.tscn
+res://entities/bullet.tscn
+res://player/player_camera.gd
+res://player/player.gd
+res://player/Debug_Labels.gd
