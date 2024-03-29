@@ -1,7 +1,0 @@
-res://entities/enemies/goon.tscn::794c8f30b804da2c9e9fc032b85d2ca3::1709264116::res://.godot/exported/133200997/export-d21601c80a676738577e3fb426c45538-goon.scn
-res://env/grass_tile_set.tres::975d937f3b88b1b33b3c4cf13b8eaa2b::1709262288::res://.godot/exported/133200997/export-8966d4167a73c9a16136da749bf4e17b-grass_tile_set.res
-res://player/player.tscn::f324b7567d3861e0defd1015599c51c8::1709264116::res://.godot/exported/133200997/export-753d15e03e0182f9d550ac833b42bb41-player.scn
-res://main.tscn::afcecf787a0aa5e27eeddfb2f28aca6f::1709264116::res://.godot/exported/133200997/export-3070c538c03ee49b7677ff960a3f5195-main.scn
-res://entities/bullet.tscn::c00907cf32bf3c98f0c334bc74c339b7::1709264116::res://.godot/exported/133200997/export-d7fa7dcc020af3e090665e0d4b77ee82-bullet.scn
-res://entities/bullet_atlas.tres::de54d7e8c2704828dfbad32134f1124e::1709242045::res://.godot/exported/133200997/export-7973c77ce5a5d71309f8d3244b5ded88-bullet_atlas.res
-res://joystix_monospace.tres::42b5f4d5dfcd17f294813726991c7317::1706406650::res://.godot/exported/133200997/export-a790868cb3e6258855195008b3a4d222-joystix_monospace.res
