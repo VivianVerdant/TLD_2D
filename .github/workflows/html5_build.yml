@@ -3,8 +3,8 @@ on: push
 
 env:
   GODOT_VERSION: 4.2.1
-  EXPORT_NAME: project
-  PROJECT_PATH: project
+  EXPORT_NAME: tld_2d
+  PROJECT_PATH: Project
 
 jobs:
   export-windows:
