@@ -2,12 +2,12 @@
 class_name Player
 extends CharacterBody2D
 
-@export var MAX_SPEED: float = 150.0
+@export var MAX_SPEED: float = 180.0
 @export var ACCELERATION: float = 10.0
 @export var AIR_FRICTION: float = 0.5
 @export var SKID_FRICTION: float = 0.5
-@export var SLIDE_FRICTION: float = 0.5
-@export var FRICTION: float = 0.5
+@export var SLIDE_FRICTION: float = 0.99
+@export var FRICTION: float = 0.9
 @export var GRAVITY: float = 8.0
 @export var JUMP_FORCE: float = 175.0
 @export var GROUND_ANGLE: float = 45.0
@@ -32,19 +32,21 @@ var snap: Vector2 = Vector2.ZERO
 var on_ground: bool = false
 var collision_angle: Vector2
 
+@onready var can_stand_raycast = $can_stand_raycast
+
 enum PLATFORMER_STATES {NEUTRAL, SLIDING, RUNNING, FALLING, JUMPING, SKIDDING}
 var platformer_state: PLATFORMER_STATES = PLATFORMER_STATES.FALLING
 
-enum ACTION_STATES {MELEE}
-var action_state: ACTION_STATES
+enum ACTION_STATES {NONE, MELEE}
+var action_state: ACTION_STATES = ACTION_STATES.NONE
 
 var busy: bool = false
 var no_grav: bool = false
 
-
 @onready var body = $flip/body
 @onready var flip = $flip
 @onready var animation_player = $animation_player
+@onready var action_player = $action_player
 @onready var audio_player = $audio_stream_player
 @onready var effects_player = $effects_player
 
@@ -56,8 +58,13 @@ signal ui_update_energy(value)
 func _ready():
 	can_shoot = true
 	curr_health = max_health
-
+	
 func set_platformer_state():
+	
+	# If we are under something and cannot stand up, keep on sliding
+	if can_stand_raycast.is_colliding():
+		platformer_state = PLATFORMER_STATES.SLIDING	# Set state
+		return
 	
 	# Initialize the state to neutral each frame, then proceed until we find another state that is more applicable or not
 	platformer_state = PLATFORMER_STATES.NEUTRAL
@@ -77,7 +84,7 @@ func set_platformer_state():
 		# Ground movement
 		
 		# If we are pressing down on the D pad we start sliding
-		if GlobalInput.joyLY > 0:
+		if GlobalInput.joyLY < 0 and abs(velocity.x) > 0.1:
 			platformer_state = PLATFORMER_STATES.SLIDING	# Set state
 			return
 		
@@ -107,15 +114,17 @@ func set_animation(delta):
 	animation_player.advance(delta)
 	#effects_player.advance(delta)
 	
-	if sign(GlobalInput.joyLX) != 0:
+	if sign(GlobalInput.joyLX) != 0 and animation_player.current_animation != "slide":
 		flip.scale.x = sign(GlobalInput.joyLX)
 		
 	#if GlobalInput.joyL != Vector2.ZERO:
 		#facing = GlobalInput.joyL
-
+	
 	match platformer_state:
 		PLATFORMER_STATES.NEUTRAL:
 			animation_player.play("stand", -1, 0.0)
+		PLATFORMER_STATES.SLIDING:
+			animation_player.play("slide", -1, 0.0)
 		PLATFORMER_STATES.JUMPING:
 			animation_player.play("jump", -1, 0.0)
 			animation_player.seek(0.0433, true)
@@ -125,6 +134,7 @@ func set_animation(delta):
 		PLATFORMER_STATES.RUNNING, PLATFORMER_STATES.SLIDING:
 			animation_player.play("run", -1, abs(velocity.x) / MAX_SPEED)
 		
+	
 		#PLATFORMER_STATES.MELEE:
 			#if not busy and is_on_floor():
 				#animation_player.play("melee ground", -1, 1.0)
@@ -147,8 +157,6 @@ func set_animation(delta):
 func do_physics():
 	
 	# TODO: refactor head bonkin stuff
-	# TODO: refactor jump_timer stuff
-	# TODO: cap player speed
 	
 	match platformer_state:
 		PLATFORMER_STATES.JUMPING:
@@ -174,7 +182,9 @@ func do_physics():
 			
 		PLATFORMER_STATES.SLIDING:
 			on_ground = true
-			velocity.x *= SLIDE_FRICTION
+			#don't apply any friction if we cannot stand back up so that we clear the obstacle
+			if not can_stand_raycast.is_colliding():
+				velocity.x *= SLIDE_FRICTION
 			
 		PLATFORMER_STATES.NEUTRAL, _:
 			on_ground = true
@@ -187,7 +197,8 @@ func do_physics():
 		velocity.y = max(velocity.y,0)
 		jump_timer.stop()
 	
-
+	if abs(velocity.x) < 1.0:
+		velocity.x = 0.0
 	
 	if abs(velocity.x) > MAX_SPEED:
 		velocity.x = GlobalInput.joyLX * MAX_SPEED
@@ -200,11 +211,23 @@ func do_physics():
 		#if abs(collision.get_normal().y) <= .1:
 			#velocity.x = 0
 
-func do_actions():
-	if GlobalInput.action and not busy:
-		#print("paunch")
-		#state = PLATFORMER_STATES.MELEE
-		pass
+func set_action_state():
+	# Only start a new action if none are currently active
+	if action_state != ACTION_STATES.NONE:
+		return
+	
+	if GlobalInput.action:
+		action_state = ACTION_STATES.MELEE
+		action_player.play("melee")
+		return
+	
+	action_state = ACTION_STATES.NONE
+	action_player.play("none")
+
+func do_actions(delta):
+	action_player.advance(delta)
+	if not action_player.is_playing():
+		action_state = ACTION_STATES.NONE
 
 # Code that runs every physics step (usually twice as fast as rendered frames)
 func _physics_process(delta):
@@ -218,8 +241,8 @@ func _physics_process(delta):
 	if not busy:
 		set_platformer_state() 	# Using player inputs and character's condition in the world, set the platforming state
 		do_physics() 			# Using the state set above, apply various physics processes to the physical character
-		#set_action_state()		# Using player inputs, set what action the player is trying to do (interacting with objects, attacking, etc)
-		do_actions()			# Using the state set above, aplly those actions to the other actors in the world
+		set_action_state()		# Using player inputs, set what action the player is trying to do (interacting with objects, attacking, etc)
+		do_actions(delta)		# Using the state set above, aplly those actions to the other actors in the world
 		set_animation(delta)	# Set what animation the animation player node should run
 	
 	# not ideal, I still need to fix how to handle holding down jump inputs
@@ -231,7 +254,8 @@ func _physics_process(delta):
 		"On Ground": on_ground,
 		"Velocity": velocity,
 		"Jump Timer": jump_timer.time_left,
-		"jump pressed prev frame": jump_pressed_prev_frame
+		"jump pressed prev frame": jump_pressed_prev_frame,
+		"action state": ACTION_STATES.keys()[action_state]
 	})
 
 func _on_hitbox_body_entered(object):
